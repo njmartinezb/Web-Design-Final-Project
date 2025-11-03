@@ -83,12 +83,8 @@ class JustificationController extends Controller
                 'end_date' => $data['end_date'],
                 'university_class_id' => $data['university_class_id'],
                 'student_id' => auth()->id(),
-                'status' => ['required',
-                    Rule::in([
-                        Justification::STATUS_PENDING,
-                        Justification::STATUS_APPROVED,
-                        Justification::STATUS_REJECTED,
-                ])],
+                // Estado inicial por defecto válido
+                'status' => Justification::STATUS_PENDING,
             ]);
 
             if ($request->hasFile('documents')) {
@@ -179,7 +175,6 @@ class JustificationController extends Controller
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 'university_class_id' => $data['university_class_id'],
-                'status' => $data['status'],
             ]);
 
             if ($request->has('remove_documents')) {
