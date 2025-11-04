@@ -49,56 +49,38 @@ class JustificationController extends Controller
     {
         $data = $request->validate([
             'description' => 'required|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'university_class_id' => [
-                'required',
-                'exists:classes,id',
-                function ($attribute, $value, $fail) use ($request) {
-                    $start = Carbon::parse($request->start_date);
-                    $end = Carbon::parse($request->end_date);
-                    $days = [];
-
-                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-                        $days[] = $date->dayOfWeek;
-                    }
-
-                    $hasValidDays = ClassGroup::where('class_id', $value)
-                        ->whereHas('days', function($q) use ($days) {
-                            $q->whereIn('weekday', array_unique($days));
-                        })->exists();
-
-                    if (!$hasValidDays) {
-                        $fail('La clase seleccionada no tiene horarios en las fechas indicadas.');
-                    }
-                }
-            ],
-            'documents.*' => 'required|file|max:2048|mimes:pdf,jpg,png'
+            'start_date'  => 'required|date',
+            'end_date'    => 'required|date|after_or_equal:start_date',
+            'university_class_id' => ['required', 'exists:classes,id'],
+            'documents.*' => 'required|file|max:2048|mimes:pdf,jpg,png',
         ]);
 
-        DB::transaction(function () use ($data, $request) {
-            $justification = Justification::create([
-                'description' => $data['description'],
-                'start_date' => $data['start_date'],
-                'end_date' => $data['end_date'],
-                'university_class_id' => $data['university_class_id'],
-                'student_id' => auth()->id(),
-                'status' => ['required',
-                    Rule::in([
-                        Justification::STATUS_PENDING,
-                        Justification::STATUS_APPROVED,
-                        Justification::STATUS_REJECTED,
-                ])],
+        JustificationValidationPipeline::makeForCreate()->handle([
+            'description'          => $data['description'],
+            'start_date'           => $data['start_date'],
+            'end_date'             => $data['end_date'],
+            'university_class_id'  => $data['university_class_id'],
+            'documents'            => $request->file('documents', []),
+            'student_id'           => auth()->id(),
+        ]);
+
+        \DB::transaction(function () use ($data, $request) {
+            $justification = \App\Models\Justification::create([
+                'description'          => $data['description'],
+                'start_date'           => $data['start_date'],
+                'end_date'             => $data['end_date'],
+                'university_class_id'  => $data['university_class_id'],
+                'student_id'           => auth()->id(),
+                'status'               => \App\Models\Justification::STATUS_PENDING,
             ]);
 
             if ($request->hasFile('documents')) {
                 foreach ($request->file('documents') as $file) {
-
                     $justification->documents()->create([
                         'file_content' => file_get_contents($file->getRealPath()),
-                        'file_name' => $file->getClientOriginalName(),
-                        'mime_type' => $file->getMimeType(),
-                        'size' => $file->getSize()
+                        'file_name'    => $file->getClientOriginalName(),
+                        'mime_type'    => $file->getMimeType(),
+                        'size'         => $file->getSize(),
                     ]);
                 }
             }
@@ -106,7 +88,7 @@ class JustificationController extends Controller
 
         return redirect()->route('justifications.index')->with('alert', [
             'type' => 'success',
-            'message' => 'Justificación creada exitosamente.'
+            'message' => 'Justificación creada exitosamente.',
         ]);
     }
 
@@ -142,35 +124,22 @@ class JustificationController extends Controller
         }
 
         $data = $request->validate([
-            'description' => 'required|string',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'university_class_id' => [
-                'required',
-                'exists:classes,id',
-                function ($attribute, $value, $fail) use ($request) {
-                    $start = Carbon::parse($request->start_date);
-                    $end = Carbon::parse($request->end_date);
+            'description'          => 'required|string',
+            'start_date'           => 'required|date',
+            'end_date'             => 'required|date|after_or_equal:start_date',
+            'university_class_id'  => ['required', 'exists:classes,id'],
+            'documents.*'          => 'sometimes|file|max:2048|mimes:pdf,jpg,png',
+            'remove_documents'     => 'sometimes|array',
+            'remove_documents.*'   => 'exists:justification_documents,id',
+        ]);
 
-                    $days = [];
-
-                    for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-                        $days[] = $date->dayOfWeek;
-                    }
-
-                    $hasValidDays = ClassGroup::where('class_id', $value)
-                        ->whereHas('days', function($q) use ($days) {
-                            $q->whereIn('weekday', array_unique($days));
-                        })->exists();
-
-                    if (!$hasValidDays) {
-                        $fail('La clase seleccionada no tiene horarios en las fechas indicadas.');
-                    }
-                }
-            ],
-            'documents.*' => 'sometimes|file|max:2048|mimes:pdf,jpg,png',
-            'remove_documents' => 'sometimes|array',
-            'remove_documents.*' => 'exists:justification_documents,id'
+        JustificationValidationPipeline::makeForUpdate()->handle([
+            'description'          => $data['description'],
+            'start_date'           => $data['start_date'],
+            'end_date'             => $data['end_date'],
+            'university_class_id'  => $data['university_class_id'],
+            'documents'            => $request->file('documents', []), // optional
+            'student_id'           => auth()->id(),
         ]);
 
         DB::transaction(function () use ($data, $request, $justification) {
