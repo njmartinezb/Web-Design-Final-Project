@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Justification;
 use App\Models\UniversityClass;
+use App\Justifications\Validation\JustificationValidationPipeline;
 use App\Models\JustificationDocument;
 use App\Models\ClassGroup;
 use Illuminate\Support\Facades\DB;
@@ -148,7 +149,6 @@ class JustificationController extends Controller
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 'university_class_id' => $data['university_class_id'],
-                'status' => $data['status'],
             ]);
 
             if ($request->has('remove_documents')) {
