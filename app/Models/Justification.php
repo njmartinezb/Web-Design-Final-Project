@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\JustificationDocument;
 use App\Models\UniversityClass;
 use App\Models\User;
+use App\Justifications\State\JustificationState;
+use App\Justifications\State\JustificationStateFactory;
 
 class Justification extends Model
 {
@@ -47,15 +49,21 @@ class Justification extends Model
         return $this->status === self::STATUS_REJECTED;
     }
 
-    // Métodos para cambiar el estado
+    // Obtener el estado como objeto (Patrón State)
+    public function state(): JustificationState
+    {
+        return JustificationStateFactory::make($this->status);
+    }
+
+    // Métodos para cambiar el estado (delegan al State)
     public function approve(): void
     {
-        $this->update(['status' => self::STATUS_APPROVED]);
+        $this->state()->approve($this);
     }
 
     public function reject(): void
     {
-        $this->update(['status' => self::STATUS_REJECTED]);
+        $this->state()->reject($this);
     }
 
     // Método para obtener el texto del estado

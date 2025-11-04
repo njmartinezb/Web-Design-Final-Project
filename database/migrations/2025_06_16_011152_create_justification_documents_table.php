@@ -20,9 +20,8 @@ return new class extends Migration
             $table->unsignedInteger('size');
             $table->timestamps();
         });
-        // Change file_content to LONGBLOB to support larger files
-        // This is necessary for storing larger documents like PDFs or images
-        DB::statement('ALTER TABLE justification_documents MODIFY file_content LONGBLOB');
+
+        //DB::statement('ALTER TABLE justification_documents MODIFY file_content LONGBLOB');
     }
 
     /**
