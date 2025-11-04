@@ -64,7 +64,10 @@ class DashboardController extends Controller
             abort(403, 'No tienes permisos para aprobar justificaciones.');
         }
 
-        $justification->approve();
+        // Ejecutar mediante Command Pattern
+        \App\Jobs\CommandHandlerJob::dispatch(
+            new \App\Justifications\Commands\ApproveJustification($justification->id)
+        );
 
         return redirect()->back()->with('alert', [
             'type' => 'success',
@@ -79,7 +82,10 @@ class DashboardController extends Controller
             abort(403, 'No tienes permisos para rechazar justificaciones.');
         }
 
-        $justification->reject();
+        // Ejecutar mediante Command Pattern
+        \App\Jobs\CommandHandlerJob::dispatch(
+            new \App\Justifications\Commands\RejectJustification($justification->id)
+        );
 
         return redirect()->back()->with('alert', [
             'type' => 'success',
