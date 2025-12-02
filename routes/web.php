@@ -17,6 +17,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:user,admin,professor'])
     ->name('dashboard');
 
+    Route::get('/justifications/available-classes', [JustificationController::class, 'getAvailableClasses'])
+    ->name('justifications.available-classes')
+        ->middleware(['auth']);
+
 // Rutas de aprobación/rechazo de justificaciones (solo admin)
 Route::middleware(['auth', 'role:admin,professor'])->group(function () {
     Route::post('/justifications/{justification}/approve', [DashboardController::class, 'approve'])
@@ -35,12 +39,16 @@ Route::middleware(['auth', 'role:user,admin,professor'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::view('/about', 'pages.about')->name('about');
     Route::resource('justifications', JustificationController::class);
+
+
     Route::get('/justifications/{justification}/download/{document}', [JustificationController::class, 'downloadDocument'])
         ->name('justifications.download')
         ->middleware(['auth']);
-    Route::get('/justifications/available-classes', [JustificationController::class, 'getAvailableClasses'])
-    ->name('justifications.available-classes')
-    ->middleware(['auth']); // Asegura que solo usuarios autenticados puedan acceder
+
+
+Route::get('/classes/{class}/details', [ClassController::class, 'details'])
+    ->name('classes.details');
+
     Route::view('/about', 'pages.about')
     ->name('about');
     Route::get('/dashboard/justifications/{justification}', [DashboardController::class, 'showJustification'])
