@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,9 +10,17 @@ use App\Models\UniversityClass;
 use App\Models\User;
 use App\Justifications\State\JustificationState;
 use App\Justifications\State\JustificationStateFactory;
+use App\Justifications\Observers\JustificationCreatedEvent;
+use App\Justifications\Observers\JustificationEvent;
+use App\Justifications\Observers\JustificationStatusChangedEvent;
+use App\Justifications\Observers\JustificationObservable;
+use App\Justifications\Observers\JustificationObserver;
+use Illuminate\Support\Facades\Event;
 
-class Justification extends Model
+class Justification extends Model implements  JustificationObservable
 {
+    private ?JustificationEvent $pendingEvent = null;
+
     protected $fillable = [
         'description',
         'start_date',
@@ -55,7 +62,6 @@ class Justification extends Model
         return JustificationStateFactory::make($this->status);
     }
 
-    // Métodos para cambiar el estado (delegan al State)
     public function approve(): void
     {
         $this->state()->approve($this);
@@ -97,4 +103,43 @@ class Justification extends Model
     {
         return $this->hasMany(JustificationDocument::class);
     }
+
+  public function attachJustificationObserver(JustificationObserver $observer): void
+    {
+        // Optional: if you truly need runtime attach per UML, you can register dynamically:
+        Event::listen(JustificationCreatedEvent::class, [$observer, 'handle']);
+        Event::listen(JustificationStatusChangedEvent::class, [$observer, 'handle']);
+    }
+
+    public function detachJustificationObserver(JustificationObserver $observer): void
+    {
+        // Laravel can "forget" listeners by event name (removes a set of listeners). :contentReference[oaicite:5]{index=5}
+        // If you need per-observer detach, you'd rebuild listeners after forget.
+        Event::forget(JustificationCreatedEvent::class);
+        Event::forget(JustificationStatusChangedEvent::class);
+    }
+
+    public function notifyJustificationObserver(): void
+    {
+        if ($this->pendingEvent) {
+            event($this->pendingEvent); // dispatches to all Event::listen(...) listeners
+            $this->pendingEvent = null;
+        }
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (Justification $j) {
+            $j->pendingEvent = new JustificationCreatedEvent($j);
+            $j->notifyJustificationObserver();
+        });
+
+        static::updated(function (Justification $j) {
+            if ($j->wasChanged('status')) {
+                $j->pendingEvent = new JustificationStatusChangedEvent($j);
+                $j->notifyJustificationObserver();
+            }
+        });
+    }
+
 }
