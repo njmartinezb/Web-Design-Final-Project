@@ -20,11 +20,9 @@ class ClassController extends Controller
      */
     public function index(Request $request)
     {
-        $query = UniversityClass::with([
-                'faculty',
-                'groups.professor',
-                'groups.days',
-            ])
+        $query = UniversityClass::query()
+            ->with("faculty:id,name")
+            ->withCount("groups")
             ->when($request->filled('name'), fn($q) =>
                 $q->where('name', 'like', '%'.$request->name.'%')
             )
@@ -221,5 +219,15 @@ class ClassController extends Controller
         });
 
         return response()->json(null, 204);
+    }
+
+    public function details(UniversityClass $class) {
+        $class->load([
+            'faculty:id,name',
+            'groups.professor:id,first_name,last_name',
+            'groups.days:id,group_id,weekday,start_time,duration_in_min',
+        ]);
+
+        return response()->json($class);
     }
 }

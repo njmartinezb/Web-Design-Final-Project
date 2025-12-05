@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Justifications\Validation;
 
 class JustificationValidationPipeline

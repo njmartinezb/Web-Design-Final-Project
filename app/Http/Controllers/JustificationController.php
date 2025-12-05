@@ -42,8 +42,7 @@ class JustificationController extends Controller
     public function create()
     {
         $justification = new Justification();
-        $classes = UniversityClass::with(['faculty','groups.days'])->get();
-        return view('justifications.create', compact('justification', 'classes'));
+        return view('justifications.create', compact('justification'));
     }
 
     public function store(Request $request)
@@ -111,10 +110,8 @@ class JustificationController extends Controller
         }
 
 
-        $classes = UniversityClass::with(['faculty','groups.days'])->get();
         return view('justifications.edit', [
             'justification' => $justification->load(['class.faculty', 'student', 'documents']),
-            'classes' => $classes
         ]);
     }
 
@@ -214,33 +211,26 @@ class JustificationController extends Controller
 
     public function getAvailableClasses(Request $request)
     {
-        $validated = $request->validate([
-            'weekday' => 'required|integer|between:0,6'
+        $data = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
         ]);
 
-        $weekday = $validated['weekday'];
+        $start = Carbon::parse($data['start_date']);
+        $end   = Carbon::parse($data['end_date']);
+
+        $weekdays = [];
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            $weekdays[] = $d->dayOfWeek; // 0..6
+        }
+        $weekdays = array_values(array_unique($weekdays));
 
         $classes = UniversityClass::query()
-            ->with(['faculty', 'groups.days'])
-            ->whereHas('groups.days', function($query) use ($weekday) {
-                $query->where('weekday', $weekday);
-            })
-            ->get()
-            ->map(function ($class) use ($weekday) {
-                $class->setRelation('groups', $class->groups->filter(function ($group) use ($weekday) {
-                    $group->setRelation('days', $group->days->filter(function ($day) use ($weekday) {
-                        return $day->weekday == $weekday;
-                    }));
-                    return $group->days->where('weekday', $weekday)->isNotEmpty();
-                })->values());
-                return $class;
-            })
-            ->filter(function ($class) {
-                return $class->groups->isNotEmpty();
-            })
-            ->values();
+            ->with(['faculty:id,name'])
+            ->whereHas('groups.days', fn($q) => $q->whereIn('weekday', $weekdays))
+            ->get();
 
-        return response()->json($classes->toArray());
+        return response()->json($classes);
     }
 
 
